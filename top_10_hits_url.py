@@ -1,0 +1,134 @@
+#importing required libraries
+import matplotlib.pyplot as plt
+from tkinter import Tk, Button
+from datetime import date
+import random
+from random import randint, choice
+import sys
+import time
+import faker
+from datetime import datetime
+import os
+import re
+import pandas as pd
+import matplotlib as pyplot
+
+os.environ['TZ'] = 'Asia/Kolkata'
+fak = faker.Faker()
+
+def str_time_prop(start, end, format, prop):
+    stime = time.mktime(time.strptime(start, format))
+    etime = time.mktime(time.strptime(end, format))
+    ptime = stime + prop * (etime - stime)
+    return time.strftime(format, time.localtime(ptime))
+
+#Genertaing random dates bw two dates
+
+def random_date(start, end, prop):
+    return str_time_prop(start, end, '%d/%b/%Y:%I:%M:%S %z', prop)
+
+dictionary = {'request': ['GET', 'POST', 'PUT', 'DELETE'], 'endpoint': ['/usr', '/usr/admin', '/usr/admin/developer', '/usr/login', '/usr/register'], 'statuscode': [
+    '303', '404', '500', '403', '502', '304','200'], 'username': ['james', 'adam', 'eve', 'alex', 'smith', 'isabella', 'david', 'angela', 'donald', 'hilary'],
+    'ua' : ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:84.0) Gecko/20100101 Firefox/84.0',
+            'Mozilla/5.0 (Android 10; Mobile; rv:84.0) Gecko/84.0 Firefox/84.0',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36',
+            'Mozilla/5.0 (Linux; Android 10; ONEPLUS A6000) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Mobile Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4380.0 Safari/537.36 Edg/89.0.759.0',
+            'Mozilla/5.0 (Linux; Android 10; ONEPLUS A6000) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.116 Mobile Safari/537.36 EdgA/45.12.4.5121',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36 OPR/73.0.3856.329',
+            'Mozilla/5.0 (Linux; Android 10; ONEPLUS A6000) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Mobile Safari/537.36 OPR/61.2.3076.56749',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A',
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 12_4_9 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.2 Mobile/15E148 Safari/604.1'],
+            'referrer' : ['-',fak.uri()]}
+f = open("logfiles.log","w")
+for _ in range(1,1000001):
+    f.write('%s - - [%s] "%s %s HTTP/1.0" %s %s "%s" "%s" %s\n' % 
+        (fak.ipv4(),
+        random_date("01/Jan/2018:12:00:00 +0530","01/Jan/2020:12:00:00 +0530",10), 
+         choice(dictionary['request']),
+         choice(dictionary['endpoint']),
+         choice(dictionary['statuscode']),    
+         str(int(random.gauss(5000,50))),
+         choice(dictionary['referrer']),
+         choice(dictionary['ua']),
+         random.randint(1,5000)))
+
+f.close()
+
+# Read the log file into a pandas DataFrame and splitting columns 
+
+log_data = pd.read_csv("logfiles.log", sep=" - - ", engine="python", header=None)
+log_data.columns = ["IP", "LogInfo"]
+
+#Changing timestamp format
+log_data["Timestamp"] = log_data["LogInfo"].str.extract(r'\[(.*?)\]')[0]
+log_data["Timestamp"] = pd.to_datetime(log_data["Timestamp"], format="%d/%b/%Y:%H:%M:%S %z")
+
+
+# Read the log file into a pandas DataFrame and renaming the columns
+log_data = pd.read_csv("logfiles.log", sep=" ", header=None)
+log_data.columns = ["Index", "IP", "LogInfo", "Request", "Endpoint", "HTTPVersion", "StatusCode", "ResponseSize", "Referrer", "UserAgent", "RandomInt"]
+
+#1. Top 10 hits per hour
+
+# Read the log file into a pandas DataFrame
+log_data = pd.read_csv("logfiles.log", sep=" ", header=None)
+log_data.columns = ["Index", "IP", "LogInfo", "Request", "Endpoint", "HTTPVersion", "StatusCode", "ResponseSize", "Referrer", "UserAgent", "RandomInt"]
+
+# Generate fake hours using random library and add them to the "Hour" column
+log_data["Hour"] = [random.randint(0, 23) for _ in range(len(log_data))]
+
+# Calculate total number of hits per hour
+hits_per_hour = log_data.groupby("Hour")["Index"].count().reset_index()
+
+# Sort hits per hour in descending order of their count
+hits_per_hour_sorted = hits_per_hour.sort_values(by="Index", ascending=False)
+
+# Reset the index and rename the "Index" column
+hits_per_hour_sorted.reset_index(drop=True, inplace=True)
+hits_per_hour_sorted.rename(columns={"Index": "TotalHitsPerHour"}, inplace=True)
+
+# Get the top 10 hits on an hourly basis
+top_10_hits = hits_per_hour_sorted.head(10)
+
+print("Top 10 hits hourly basis:")
+print(top_10_hits)
+
+import matplotlib.pyplot as plt
+
+# Set y-axis limits
+y_min = 40000
+y_max = 42500
+
+# Plot the bar graph for top 10 hits
+plt.bar(top_10_hits["Hour"], top_10_hits["TotalHitsPerHour"])
+plt.xlabel("Hour")
+plt.ylabel("Total Hits")
+plt.title("Top 10 Hits Hourly Basis")
+plt.ylim(y_min, y_max)  # Set y-axis limits
+plt.tight_layout()
+plt.show()
+
+# ... (rest of your code)
+
+# Function to generate and display the graph for top 10 hits per hour
+def display_top_10_hits_graph(top_10_hits):
+    # Generate the graph for top 10 hits per hour
+    plt.bar(top_10_hits["Hour"], top_10_hits["TotalHitsPerHour"])
+    plt.xlabel("Hour")
+    plt.ylabel("Total Hits")
+    plt.title("Top 10 Hits Hourly Basis")
+    plt.ylim(y_min, y_max)  # Set y-axis limits
+    plt.tight_layout()
+    plt.show()
+
+# Create a tkinter window
+root = Tk()
+root.title("Display Graph")
+
+# Create a button to display the graph
+display_graph_button = Button(root, text="Top 10 hits per hour URL", command=lambda: display_top_10_hits_graph(top_10_hits))
+display_graph_button.pack(pady=20)
+
+# Run the tkinter main loop
+root.mainloop()
